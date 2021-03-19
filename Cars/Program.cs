@@ -9,10 +9,23 @@ namespace Cars
     {
         static void Main(string[] args)
         {
-            var cars = ProcessFile("Cars/fuel.csv");
+            var cars = ProcessFile("fuel.csv");
 
-            var query = cars.OrderByDescending(c => c.Combined)
-                            .ThenBy(c => c.Name);
+            var query = cars.Where(c => c.Manufacturer.ToLower() == "toyota" && c.Year == 2016)
+                            .OrderByDescending(c => c.Combined)
+                            .ThenBy(c => c.Name)
+                            .Select(c => c);
+
+            var top = cars.Where(c => c.Manufacturer.ToLower() == "jeep" && c.Combined > 20)
+                          .FirstOrDefault();
+
+            var result = cars.Contains(top);
+            Console.WriteLine($"Contains? {result}");
+            if (top != null)
+            {
+                Console.WriteLine($"{top.Name} : {top.Combined}");
+            }
+
 
             foreach (var car in query.Take(10))
             {
