@@ -9,42 +9,55 @@ namespace Cars
     {
         static void Main(string[] args)
         {
-            var cars = ProcessFile("fuel.csv");
+            var cars = ProcessCars("fuel.csv");
+            var manufacturers = ProcessManufacturers("manufacturers.csv");
 
-            var query = cars.Where(c => c.Manufacturer.ToLower() == "toyota" && c.Year == 2016)
+            var query = from car in cars
+                        join manufacturer in manufacturers
+                            on new { car.Manufacturer, car.Year }
+                            equals new
+                            {
+                                Manufacturer = manufacturer.Name,
+                                manufacturer.Year
+                            }
+                        orderby car.Combined descending, car.Name ascending
+                        select new
+                        {
+                            car.Name,
+                            manufacturer.Headquarters,
+                            car.Combined
+                        };
+
+            var query2 = cars.Join(
+                                manufacturers,
+                                (c) => new { c.Manufacturer, c.Year },
+                                (m) => new { Manufacturer = m.Name, m.Year },
+                                (c, m) => new
+                                {
+                                    c.Name,
+                                    c.Combined,
+                                    m.Headquarters
+                                })
                             .OrderByDescending(c => c.Combined)
-                            .ThenBy(c => c.Name)
-                            .Select(c => new { c.Name, 
-                                               c.Manufacturer,
-                                               c.Year,
-                                               c.Combined });
-            //---
-            var top = cars.Where(c => c.Manufacturer.ToLower() == "ford" && c.Combined > 20)
-                          .FirstOrDefault();
+                            .ThenBy(c => c.Name);
 
-            var contains = cars.Contains(top);
-            Console.WriteLine($"Contains? {contains}");
-            if (top != null)
+            foreach (var line in query2.Take(10))
             {
-                Console.WriteLine($"{top.Name} : {top.Combined}");
+                Console.WriteLine($"{line.Headquarters} {line.Name} : {line.Combined}");
             }
-            //---
-            var result = cars.SelectMany(c => c.Name)
-                             .OrderBy(c => c);
-
-            foreach (var character in result)
-            {
-                Console.WriteLine(character);
-            }
-            //---
-            foreach (var car in query.Take(5))
-            {
-                Console.WriteLine($"{car.Manufacturer} {car.Name} : {car.Combined}");
-            }
-            Console.WriteLine($"Cars inspected -> {cars.Count()}");
         }
 
-        private static List<Car> ProcessFile(string path)
+        private static List<Manufacturer> ProcessManufacturers(string path)
+        {
+            var query =
+                    File.ReadAllLines(path)
+                        .Where(line => line.Length > 1)
+                        .ToManufacturer();
+
+            return query.ToList();
+        }
+
+        private static List<Car> ProcessCars(string path)
         {
             var query =
                 File.ReadAllLines(path)
