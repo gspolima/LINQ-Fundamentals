@@ -26,13 +26,13 @@ namespace Cars
 
             var query2 =
                 manufacturers.GroupJoin(cars, m => m.Name, c => c.Manufacturer,
-                    (m, g) =>
-                        new
-                        {
-                            Manufacturer = m,
-                            Cars = g
-                        })
-                            .GroupBy(r => r.Manufacturer.Headquarters);
+                                    (m, g) =>
+                                    new
+                                    {
+                                        Manufacturer = m,
+                                        Cars = g
+                                    })
+                             .GroupBy(r => r.Manufacturer.Headquarters);
 
             foreach (var group in query2)
             {
