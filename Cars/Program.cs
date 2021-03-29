@@ -12,38 +12,44 @@ namespace Cars
             var cars = ProcessCars("fuel.csv");
             var manufacturers = ProcessManufacturers("manufacturers.csv");
 
-            var query = from manufacturer in manufacturers
-                        join car in cars
-                            on manufacturer.Name equals car.Manufacturer
-                        into carsGroup
+            var query = from car in cars
+                        group car by car.Manufacturer
+                        into carGroup
                         select new
                         {
-                            Manufacturer = manufacturer,
-                            Cars = carsGroup
+                            Name = carGroup.Key,
+                            Max = carGroup.Max(c => c.Combined),
+                            Min = carGroup.Min(c => c.Combined),
+                            Average = carGroup.Average(c => c.Combined)
                         }
                         into result
-                        group result by result.Manufacturer.Headquarters;
+                        orderby result.Max descending
+                        select result;
 
             var query2 =
-                manufacturers.GroupJoin(cars, m => m.Name, c => c.Manufacturer,
-                                    (m, g) =>
-                                    new
-                                    {
-                                        Manufacturer = m,
-                                        Cars = g
-                                    })
-                             .GroupBy(r => r.Manufacturer.Headquarters);
+                cars.GroupBy(c => c.Manufacturer)
+                    .Select(g => 
+                    {
+                        var results =
+                                g.Aggregate(new CarStatistics(),
+                                        (acc, c) => acc.Accumulate(c),
+                                        (acc) => acc.Compute());
+                        return new
+                        {
+                            Name = g.Key,
+                            Max = results.Max,
+                            Min = results.Min,
+                            Average = results.Average,
+                        };
+                    })
+                    .OrderByDescending(r => r.Max);
 
-            foreach (var group in query2)
+            foreach (var result in query2)
             {
-                Console.WriteLine($"{group.Key}");
-
-                foreach (var car in group.SelectMany(g => g.Cars)
-                                         .OrderByDescending(c => c.Combined)
-                                         .Take(3))
-                {
-                    Console.WriteLine($"\t{car.Name} : {car.Combined}");
-                }
+                Console.WriteLine($"{result.Name}");
+                Console.WriteLine($"\t Max: {result.Max}");
+                Console.WriteLine($"\t Min: {result.Min}");
+                Console.WriteLine($"\t Avg: {result.Average:N1}");
             }
         }
 
