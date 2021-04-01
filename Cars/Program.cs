@@ -1,55 +1,55 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.Entity;
 using System.IO;
 using System.Linq;
 
 namespace Cars
 {
-    class Program
+    public class Program
     {
         static void Main(string[] args)
         {
-            var cars = ProcessCars("fuel.csv");
-            var manufacturers = ProcessManufacturers("manufacturers.csv");
+            Database.SetInitializer(new DropCreateDatabaseIfModelChanges<CarDb>());
+            InsertData();
+            QueryData();
+        }
 
-            var query = from car in cars
-                        group car by car.Manufacturer
-                        into carGroup
-                        select new
-                        {
-                            Name = carGroup.Key,
-                            Max = carGroup.Max(c => c.Combined),
-                            Min = carGroup.Min(c => c.Combined),
-                            Average = carGroup.Average(c => c.Combined)
-                        }
-                        into result
-                        orderby result.Max descending
-                        select result;
+        private static void QueryData()
+        {
+            var db = new CarDb();
+            var query = db.Cars.OrderByDescending(c => c.Combined)
+                               .ThenBy(c => c.Name)
+                               .Take(10)
+                               .Select(c => new
+                               {
+                                   Name = c.Name,
+                                   Manufacturer = c.Manufacturer,
+                                   Combined = c.Combined
+                               });
 
-            var query2 =
-                cars.GroupBy(c => c.Manufacturer)
-                    .Select(g => 
-                    {
-                        var results =
-                                g.Aggregate(new CarStatistics(),
-                                        (acc, c) => acc.Accumulate(c),
-                                        (acc) => acc.Compute());
-                        return new
-                        {
-                            Name = g.Key,
-                            Max = results.Max,
-                            Min = results.Min,
-                            Average = results.Average,
-                        };
-                    })
-                    .OrderByDescending(r => r.Max);
+            db.Database.Log = Console.WriteLine;
 
-            foreach (var result in query2)
+            foreach (var car in query)
             {
-                Console.WriteLine($"{result.Name}");
-                Console.WriteLine($"\t Max: {result.Max}");
-                Console.WriteLine($"\t Min: {result.Min}");
-                Console.WriteLine($"\t Avg: {result.Average:N1}");
+                Console.WriteLine($"{car.Manufacturer} {car.Name} : {car.Combined}");
+            }
+        }
+
+        private static void InsertData()
+        {
+            var cars = ProcessCars("fuel.csv");
+            var db = new CarDb();
+
+            db.Database.Log = Console.WriteLine;
+            
+            if (!db.Cars.Any())
+            {
+                foreach (var car in cars)
+                {
+                    db.Cars.Add(car);
+                }
+                db.SaveChanges();
             }
         }
 
