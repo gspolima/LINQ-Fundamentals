@@ -18,21 +18,34 @@ namespace Cars
         private static void QueryData()
         {
             var db = new CarDb();
-            var query = db.Cars.OrderByDescending(c => c.Combined)
-                               .ThenBy(c => c.Name)
-                               .Take(10)
-                               .Select(c => new
-                               {
-                                   Name = c.Name,
-                                   Manufacturer = c.Manufacturer,
-                                   Combined = c.Combined
-                               });
+            var query = from car in db.Cars
+                        group car by car.Manufacturer into manufacturersGroup
+                        select new
+                        {
+                            Name = manufacturersGroup.Key,
+                            Cars = (from car in manufacturersGroup
+                                   orderby car.Combined descending
+                                   select car).Take(2)
+                        };
+
+            var query2 = db.Cars.GroupBy(c => c.Manufacturer)
+                                .Select(g =>
+                                    new
+                                    {
+                                        Name = g.Key,
+                                        Cars = g.OrderByDescending(c => c.Combined)
+                                                .Take(2)
+                                    });
 
             db.Database.Log = Console.WriteLine;
 
-            foreach (var car in query)
+            foreach (var group in query)
             {
-                Console.WriteLine($"{car.Manufacturer} {car.Name} : {car.Combined}");
+                Console.WriteLine(group.Name);
+                foreach (var car in group.Cars)
+                {
+                    Console.WriteLine($"\t{car.Manufacturer} {car.Name} : {car.Combined}");
+                }
             }
         }
 
@@ -41,8 +54,8 @@ namespace Cars
             var cars = ProcessCars("fuel.csv");
             var db = new CarDb();
 
-            db.Database.Log = Console.WriteLine;
-            
+            //db.Database.Log = Console.WriteLine;
+
             if (!db.Cars.Any())
             {
                 foreach (var car in cars)
